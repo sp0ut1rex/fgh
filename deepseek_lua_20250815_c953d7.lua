@@ -27,7 +27,7 @@ local Config = {
         }
     },
     BoostSettings = {
-        DelayBeforeAction = 14 * 60,  -- 14 минут ожидания
+        DelayBeforeAction = 1 * 60,  -- 14 минут ожидания
         ScanInterval = 5,             -- Проверка каждые 5 сек
         FreezeDuration = 1            -- Фиксация после прилёта
     }
