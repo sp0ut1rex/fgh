@@ -28,7 +28,7 @@ local Config = {
         }
     },
     Settings = {
-        WaitTime = 1 * 60, -- 14 минут ожидания
+        WaitTime = 14 * 60, -- 14 минут ожидания
         ScanDelay = 5,      -- Проверка каждые 5 сек
         FreezeAfter = 1     -- Стоять 1 сек после Glitter
     }
