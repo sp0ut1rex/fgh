@@ -1,35 +1,19 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
-local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
 
----=== КОНФИГУРАЦИЯ ===---
-local Config = {
-    GlitterArgs = { { Name = "Glitter" } },
-    Whitelist = {
-        ["2908768899"] = { name = "BlueFlower", fieldPosition = Vector3.new(139.61, 4.00, 97.26) },
-        ["2908769190"] = { name = "PineTree", fieldPosition = Vector3.new(-332.0, 68.00, -194.90) },
-        ["2908768829"] = { name = "Bamboo", fieldPosition = Vector3.new(116.43, 20.00, -21.75) }
-    },
-    BoostSettings = {
-        DelayBeforeAction = 14 * 60, -- 14 минут ожидания
-        ScanInterval = 5
-    }
-}
-
----=== ИНТЕРФЕЙС ===---
+---=== СОЗДАЕМ ИНТЕРФЕЙС ===---
 local gui = Instance.new("ScreenGui")
 gui.Name = "Sp0ut1rexAutoFarm"
 gui.Parent = player.PlayerGui
+gui.ResetOnSpawn = false
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 300, 0, 200)
-mainFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
+mainFrame.Size = UDim2.new(0, 300, 0, 180)
+mainFrame.Position = UDim2.new(0.5, -150, 0.5, -90) -- Центр экрана
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-mainFrame.BackgroundTransparency = 0.2
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+mainFrame.BackgroundTransparency = 0.15
 mainFrame.BorderSizePixel = 0
 mainFrame.Parent = gui
 
@@ -55,11 +39,12 @@ gradient.Rotation = 90
 gradient.Parent = title
 
 local toggleBtn = Instance.new("TextButton")
+toggleBtn.Name = "ToggleButton"
 toggleBtn.Text = "START"
 toggleBtn.Font = Enum.Font.Gotham
 toggleBtn.TextSize = 14
 toggleBtn.Size = UDim2.new(0.8, 0, 0, 40)
-toggleBtn.Position = UDim2.new(0.1, 0, 0.5, -20)
+toggleBtn.Position = UDim2.new(0.1, 0, 0.4, 0)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(80, 50, 150)
 toggleBtn.TextColor3 = Color3.white
 toggleBtn.Parent = mainFrame
@@ -74,14 +59,29 @@ statusLabel.Font = Enum.Font.Gotham
 statusLabel.TextSize = 14
 statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 statusLabel.Size = UDim2.new(1, 0, 0, 30)
-statusLabel.Position = UDim2.new(0, 0, 0.8, 0)
+statusLabel.Position = UDim2.new(0, 0, 0.7, 0)
 statusLabel.BackgroundTransparency = 1
 statusLabel.Parent = mainFrame
+
+---=== КОНФИГУРАЦИЯ ===---
+local Config = {
+    GlitterArgs = { { Name = "Glitter" } },
+    Whitelist = {
+        ["2908768899"] = { name = "BlueFlower", fieldPosition = Vector3.new(139.61, 4.00, 97.26) },
+        ["2908769190"] = { name = "PineTree", fieldPosition = Vector3.new(-332.0, 68.00, -194.90) },
+        ["2908768829"] = { name = "Bamboo", fieldPosition = Vector3.new(116.43, 20.00, -21.75) }
+    },
+    BoostSettings = {
+        DelayBeforeAction = 14 * 60, -- 14 минут ожидания
+        ScanInterval = 5
+    }
+}
 
 ---=== СИСТЕМНЫЕ ПЕРЕМЕННЫЕ ===---
 local ActiveBoosts = {}
 local GlitterEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("PlayerActivesCommand")
 local isRunning = false
+local character = player.Character or player.CharacterAdded:Wait()
 
 ---=== ФУНКЦИИ ===---
 local function updateStatus(text, color)
@@ -118,7 +118,7 @@ local function startBoostProcess(boostData)
     updateStatus("Ready")
 end
 
----=== ОБРАБОТЧИКИ ===---
+---=== ОБРАБОТЧИК КНОПКИ ===---
 toggleBtn.MouseButton1Click:Connect(function()
     isRunning = not isRunning
     if isRunning then
@@ -136,10 +136,9 @@ end)
 coroutine.wrap(function()
     while true do
         if isRunning then
-            local gui = player:WaitForChild("PlayerGui")
-            local screenGui = gui:FindFirstChild("ScreenGui")
-            if screenGui then
-                local tileGrid = screenGui:FindFirstChild("TileGrid")
+            local gui = player.PlayerGui:FindFirstChild("ScreenGui")
+            if gui then
+                local tileGrid = gui:FindFirstChild("TileGrid")
                 if tileGrid then
                     for _, iconTile in ipairs(tileGrid:GetChildren()) do
                         if not iconTile:FindFirstChild("Tracked") then
@@ -166,4 +165,7 @@ coroutine.wrap(function()
     end
 end)()
 
-updateStatus("Ready")
+---=== ОБНОВЛЕНИЕ ПЕРСОНАЖА ===---
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+end)
