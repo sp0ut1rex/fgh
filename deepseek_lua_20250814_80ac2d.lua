@@ -2,9 +2,9 @@ local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local player = Players.LocalPlayer
 
--- Ваши приватные сервера Bee Swarm Simulator
-local PRIVATE_SERVER_1 = "13144669790150978796525156034582" -- Только код, без ссылки
-local PRIVATE_SERVER_2 = "05152044821246125845196560137248" -- Только код, без ссылки
+-- Коды приватных серверов (только код, без ссылки)
+local PRIVATE_SERVER_1 = "13144669790150978796525156034582"
+local PRIVATE_SERVER_2 = "05152044821246125845196560137248"
 
 -- Создаем интерфейс для отображения времени
 local ScreenGui = Instance.new("ScreenGui")
@@ -25,7 +25,12 @@ TextLabel.Text = "Мониторинг времени..."
 local function teleportToServer(serverCode)
     local placeId = 1537690962 -- ID Bee Swarm Simulator
     local success, err = pcall(function()
-        TeleportService:TeleportToPrivateServer(placeId, serverCode)
+        -- Правильный вызов TeleportToPrivateServer (3 аргумента)
+        TeleportService:TeleportToPrivateServer(
+            placeId,     -- ID игры
+            serverCode,   -- Код приватного сервера
+            player.UserId -- ID игрока (новый обязательный аргумент)
+        )
     end)
     
     if not success then
@@ -51,7 +56,7 @@ local function checkTime()
         end
         
         -- В 02 минуты → на второй сервер
-        if minutes == 10 then
+        if minutes == 16 then
             TextLabel.Text = "Переход на сервер 2..."
             teleportToServer(PRIVATE_SERVER_2)
             wait(60) -- Защита от повторного срабатывания
