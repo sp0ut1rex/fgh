@@ -1,49 +1,46 @@
 local Players = game:GetService("Players")
-local TeleportService = game:GetService("TeleportService")
 local player = Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
+local GuiService = game:GetService("GuiService")
 
--- Коды приватных серверов
-local SERVER_CODES = {
-    SERVER_1 = "13144669790150978796525156034582",
-    SERVER_2 = "05152044821246125845196560137248"
+-- Ваши приватные сервера (полные ссылки)
+local SERVER_LINKS = {
+    "https://www.roblox.com/games/1537690962/Bee-Swarm-Simulator?privateServerLinkCode=13144669790150978796525156034582",
+    "https://www.roblox.com/games/1537690962/Bee-Swarm-Simulator?privateServerLinkCode=05152044821246125845196560137248"
 }
 
--- Создаем интерфейс для отображения
-local ScreenGui = Instance.new("ScreenGui")
-local TextLabel = Instance.new("TextLabel")
+-- Создаем простой интерфейс
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = player.PlayerGui
 
-ScreenGui.Parent = player:WaitForChild("PlayerGui")
-ScreenGui.ResetOnSpawn = false
+local textLabel = Instance.new("TextLabel")
+textLabel.Size = UDim2.new(0, 300, 0, 50)
+textLabel.Position = UDim2.new(0, 10, 0, 10)
+textLabel.BackgroundTransparency = 0.7
+textLabel.TextScaled = true
+textLabel.Text = "Мониторинг времени..."
+textLabel.Parent = screenGui
 
-TextLabel.Parent = ScreenGui
-TextLabel.Size = UDim2.new(0, 300, 0, 60)
-TextLabel.Position = UDim2.new(0, 10, 0, 10)
-TextLabel.BackgroundTransparency = 0.7
-TextLabel.BackgroundColor3 = Color3.new(0, 0, 0)
-TextLabel.TextColor3 = Color3.new(1, 1, 1)
-TextLabel.TextScaled = true
-TextLabel.Text = "Ожидание времени перехода..."
-
-local function teleportToServer(serverCode)
-    local placeId = 1537690962 -- ID Bee Swarm Simulator
-    
-    -- Создаем параметры телепортации
-    local teleportOptions = Instance.new("TeleportOptions")
-    teleportOptions.ShouldReserveServer = false
-    
-    local success, errorMsg = pcall(function()
-        -- Правильный вызов с 4 параметрами
-        TeleportService:TeleportToPrivateServer(
-            placeId,          -- ID игры (number)
-            serverCode,      -- Код сервера (string)
-            player.UserId,   -- UserID игрока (number)
-            teleportOptions  -- Параметры (table)
-        )
-    end)
-    
-    if not success then
-        warn("Ошибка телепортации: "..tostring(errorMsg))
-        TextLabel.Text = "Ошибка: "..tostring(errorMsg)
+local function joinServer(serverLink)
+    if GuiService then
+        GuiService:OpenBrowserWindow(serverLink)
+    else
+        -- Альтернатива для некоторых эксплоитов
+        game:GetService("StarterGui"):SetCore("PromptBlockPlayer", {
+            Title = "Переход на сервер",
+            Text = "Нажмите OK для перехода",
+            Duration = 5
+        })
+        task.wait(2)
+        local success = pcall(function()
+            HttpService:RequestAsync({
+                Url = serverLink,
+                Method = "GET"
+            })
+        end)
+        if not success then
+            textLabel.Text = "Ошибка открытия ссылки"
+        end
     end
 end
 
@@ -52,19 +49,15 @@ local function checkTime()
         local currentTime = os.date("%H:%M:%S")
         local minutes = tonumber(os.date("%M"))
         
-        TextLabel.Text = "Текущее время: "..currentTime
+        textLabel.Text = "Текущее время: "..currentTime
         
-        -- В 56 минут → первый сервер
         if minutes == 56 then
-            TextLabel.Text = "Переход на Сервер 1..."
-            teleportToServer(SERVER_CODES.SERVER_1)
+            textLabel.Text = "Переход на Сервер 1..."
+            joinServer(SERVER_LINKS[1])
             task.wait(60) -- Защита от повтора
-        end
-        
-        -- В 02 минуты → второй сервер
-        if minutes == 24 then
-            TextLabel.Text = "Переход на Сервер 2..."
-            teleportToServer(SERVER_CODES.SERVER_2)
+        elseif minutes == 31 then
+            textLabel.Text = "Переход на Сервер 2..."
+            joinServer(SERVER_LINKS[2])
             task.wait(60) -- Защита от повтора
         end
     end
