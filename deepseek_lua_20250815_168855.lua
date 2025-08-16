@@ -1,137 +1,73 @@
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-
+local TeleportService = game:GetService("TeleportService")
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- Конфигурация
-local Config = {
-    GlitterArgs = { { Name = "Glitter" } },
-    Fields = {
-        ["2908768899"] = { -- BlueFlower
-            name = "BlueFlower",
-            position = Vector3.new(139.61, 4.00, 97.26),
-            flightTime = 3.5
-        },
-        ["2908769190"] = { -- PineTree
-            name = "PineTree",
-            position = Vector3.new(-332.0, 68.00, -194.90),
-            flightTime = 4
-        },
-        ["2908768829"] = { -- Bamboo
-            name = "Bamboo",
-            position = Vector3.new(116.43, 20.00, -21.75),
-            flightTime = 3
-        }
-    },
-    Settings = {
-        WaitTime = 1 * 60, -- 14 минут ожидания
-        ScanDelay = 5,      -- Проверка каждые 5 сек
-        FreezeAfter = 1     -- Стоять 1 сек после Glitter
-    }
+-- Коды приватных серверов
+local SERVER_CODES = {
+    SERVER_1 = "13144669790150978796525156034582",
+    SERVER_2 = "05152044821246125845196560137248"
 }
 
--- Система
-local ActiveBoosts = {}
-local GlitterEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("PlayerActivesCommand")
-local isFlying = false
+-- Создаем интерфейс для отображения
+local ScreenGui = Instance.new("ScreenGui")
+local TextLabel = Instance.new("TextLabel")
 
--- Логирование
-local function Log(message)
-    print("[FLIGHT SYSTEM]: "..os.date("%H:%M:%S").." | "..message)
-end
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn = false
 
--- Плавный полет с защитой
-local function SmoothFlight(targetPosition, duration)
-    if isFlying then return false end
-    isFlying = true
+TextLabel.Parent = ScreenGui
+TextLabel.Size = UDim2.new(0, 300, 0, 60)
+TextLabel.Position = UDim2.new(0, 10, 0, 10)
+TextLabel.BackgroundTransparency = 0.7
+TextLabel.BackgroundColor3 = Color3.new(0, 0, 0)
+TextLabel.TextColor3 = Color3.new(1, 1, 1)
+TextLabel.TextScaled = true
+TextLabel.Text = "Ожидание времени перехода..."
+
+local function teleportToServer(serverCode)
+    local placeId = 1537690962 -- ID Bee Swarm Simulator
     
-    -- Фиксация начальной позиции
-    local startPos = rootPart.Position
-    local startTime = tick()
-    local endTime = startTime + duration
+    -- Создаем параметры телепортации
+    local teleportOptions = Instance.new("TeleportOptions")
+    teleportOptions.ShouldReserveServer = false
     
-    -- Создаем соединение для плавного перемещения
-    local connection
-    connection = RunService.Heartbeat:Connect(function()
-        local currentTime = tick()
-        local progress = math.min(1, (currentTime - startTime) / duration)
-        
-        -- Плавное перемещение
-        rootPart.CFrame = CFrame.new(
-            startPos:Lerp(targetPosition, progress),
-            targetPosition
+    local success, errorMsg = pcall(function()
+        -- Правильный вызов с 4 параметрами
+        TeleportService:TeleportToPrivateServer(
+            placeId,          -- ID игры (number)
+            serverCode,      -- Код сервера (string)
+            player.UserId,   -- UserID игрока (number)
+            teleportOptions  -- Параметры (table)
         )
+    end)
+    
+    if not success then
+        warn("Ошибка телепортации: "..tostring(errorMsg))
+        TextLabel.Text = "Ошибка: "..tostring(errorMsg)
+    end
+end
+
+local function checkTime()
+    while task.wait(1) do
+        local currentTime = os.date("%H:%M:%S")
+        local minutes = tonumber(os.date("%M"))
         
-        -- Завершение полета
-        if progress >= 1 then
-            connection:Disconnect()
-            isFlying = false
+        TextLabel.Text = "Текущее время: "..currentTime
+        
+        -- В 56 минут → первый сервер
+        if minutes == 56 then
+            TextLabel.Text = "Переход на Сервер 1..."
+            teleportToServer(SERVER_CODES.SERVER_1)
+            task.wait(60) -- Защита от повтора
         end
-    end)
-    
-    -- Ожидаем завершения
-    repeat task.wait() until tick() >= endTime
-    if connection then connection:Disconnect() end
-    return true
-end
-
--- Основная функция буста
-local function UseBoost(boostData)
-    -- Плавный полет
-    Log("Начинаю полет на "..boostData.name)
-    SmoothFlight(boostData.position, boostData.flightTime)
-    
-    -- Фиксация после прилета
-    rootPart.Anchored = true
-    Log("Прибыл на поле, фиксирую позицию")
-    
-    -- Использование Glitter
-    pcall(function()
-        GlitterEvent:FireServer(unpack(Config.GlitterArgs))
-        Log("Glitter успешно использован")
-    end)
-    
-    -- Ожидание перед разблокировкой
-    task.wait(Config.Settings.FreezeAfter)
-    rootPart.Anchored = false
-    Log("Завершено")
-end
-
--- Сканер бустов
-local function ScanBoosts()
-    local gui = player:WaitForChild("PlayerGui")
-    for _, element in ipairs(gui:GetDescendants()) do
-        if element:IsA("ImageButton") and not element:FindFirstChild("Processed") then
-            local id = tostring(element.Image):match("rbxassetid://(%d+)")
-            if id and Config.Fields[id] and not ActiveBoosts[id] then
-                local marker = Instance.new("BoolValue")
-                marker.Name = "Processed"
-                marker.Parent = element
-                
-                ActiveBoosts[id] = true
-                Log("Обнаружен буст: "..Config.Fields[id].name)
-                
-                task.delay(Config.Settings.WaitTime, function()
-                    UseBoost(Config.Fields[id])
-                    ActiveBoosts[id] = nil
-                end)
-            end
+        
+        -- В 02 минуты → второй сервер
+        if minutes == 25 then
+            TextLabel.Text = "Переход на Сервер 2..."
+            teleportToServer(SERVER_CODES.SERVER_2)
+            task.wait(60) -- Защита от повтора
         end
     end
 end
 
--- Обработчик респавна
-player.CharacterAdded:Connect(function(newChar)
-    character = newChar
-    rootPart = character:WaitForChild("HumanoidRootPart")
-end)
-
--- Главный цикл
-while true do
-    pcall(ScanBoosts)
-    task.wait(Config.Settings.ScanDelay)
-end
+coroutine.wrap(checkTime)()
