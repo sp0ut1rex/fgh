@@ -1,102 +1,64 @@
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
 local player = Players.LocalPlayer
 
---- Конфигурация ---
-local Config = {
-    GlitterArgs = { { Name = "Glitter" } },
-    Whitelist = {
-        ["2908768899"] = { name = "BlueFlower" },
-        ["2908769190"] = { name = "PineTree" },
-        ["2908768829"] = { name = "Bamboo" }
-    },
-    BoostSettings = {
-        DelayBeforeGlitter = 14 * 60, -- 14 минут (в секундах)
-        GlitterCount = 5, -- Количество использований Glitter
-        GlitterInterval = 0.5 -- Интервал между использованиями (в секундах)
-    },
-    ScanInterval = 5
-}
+-- Ваши приватные сервера Bee Swarm Simulator
+local PRIVATE_SERVER_1 = "13144669790150978796525156034582" -- Только код, без ссылки
+local PRIVATE_SERVER_2 = "05152044821246125845196560137248" -- Только код, без ссылки
 
---- Системные переменные ---
-local ActiveBoosts = {}
-local GlitterEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("PlayerActivesCommand")
+-- Создаем интерфейс для отображения времени
+local ScreenGui = Instance.new("ScreenGui")
+local TextLabel = Instance.new("TextLabel")
 
---- Логирование ---
-local function log(message)
-    print("[BOOST SYSTEM]: " .. message)
-end
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn = false
 
---- Активация Glitter ---
-local function useGlitter()
+TextLabel.Parent = ScreenGui
+TextLabel.Size = UDim2.new(0, 250, 0, 50)
+TextLabel.Position = UDim2.new(0, 10, 0, 10)
+TextLabel.BackgroundTransparency = 0.5
+TextLabel.BackgroundColor3 = Color3.new(0, 0, 0)
+TextLabel.TextColor3 = Color3.new(1, 1, 1)
+TextLabel.TextScaled = true
+TextLabel.Text = "Мониторинг времени..."
+
+local function teleportToServer(serverCode)
+    local placeId = 1537690962 -- ID Bee Swarm Simulator
     local success, err = pcall(function()
-        GlitterEvent:FireServer(unpack(Config.GlitterArgs))
+        TeleportService:TeleportToPrivateServer(placeId, serverCode)
     end)
-    if success then
-        log("Glitter активирован")
-        return true
+    
+    if not success then
+        warn("❌ Ошибка телепорта: " .. err)
+        TextLabel.Text = "Ошибка: " .. err
     else
-        warn("Ошибка: " .. tostring(err))
-        return false
+        TextLabel.Text = "Успешно! Переход..."
     end
 end
 
---- Таймер для Glitter ---
-local function startGlitterTimer(boostId, boostName)
-    task.delay(Config.BoostSettings.DelayBeforeGlitter, function()
-        log("Активация Glitter для " .. boostName)
+local function checkTime()
+    while true do
+        local currentTime = os.date("%H:%M:%S")
+        local minutes = tonumber(os.date("%M"))
         
-        for i = 1, Config.BoostSettings.GlitterCount do
-            useGlitter()
-            if i < Config.BoostSettings.GlitterCount then
-                task.wait(Config.BoostSettings.GlitterInterval)
-            end
+        TextLabel.Text = "Время: " .. currentTime
+        
+        -- В 56 минут → на первый сервер
+        if minutes == 56 then
+            TextLabel.Text = "Переход на сервер 1..."
+            teleportToServer(PRIVATE_SERVER_1)
+            wait(60) -- Защита от повторного срабатывания
         end
         
-        log("Завершено 5 использований Glitter для " .. boostName)
-        ActiveBoosts[boostId] = nil
-    end)
-end
-
---- Сканирование бустов ---
-local function scanBoosts()
-    local gui = player:WaitForChild("PlayerGui")
-    local screenGui = gui:FindFirstChild("ScreenGui")
-    if not screenGui then return end
-
-    local tileGrid = screenGui:FindFirstChild("TileGrid")
-    if not tileGrid then return end
-
-    for _, iconTile in ipairs(tileGrid:GetChildren()) do
-        if iconTile:FindFirstChild("Tracked") then continue end
-
-        local bg = iconTile:FindFirstChild("BG")
-        if not bg then continue end
-
-        local icon = bg:FindFirstChildOfClass("ImageButton")
-        if not icon then continue end
-
-        local id = tostring(icon.Image):match("rbxassetid://(%d+)")
-        if not id or not Config.Whitelist[id] then continue end
-
-        -- Пометить буст как обработанный
-        local marker = Instance.new("BoolValue")
-        marker.Name = "Tracked"
-        marker.Parent = iconTile
-
-        -- Запустить таймер
-        if not ActiveBoosts[id] then
-            ActiveBoosts[id] = true
-            log("Обнаружен буст: " .. Config.Whitelist[id].name)
-            startGlitterTimer(id, Config.Whitelist[id].name)
+        -- В 02 минуты → на второй сервер
+        if minutes == 10 then
+            TextLabel.Text = "Переход на сервер 2..."
+            teleportToServer(PRIVATE_SERVER_2)
+            wait(60) -- Защита от повторного срабатывания
         end
+        
+        wait(1)
     end
 end
 
---- Основной цикл ---
-log("Система активирована")
-while true do
-    local success, err = pcall(scanBoosts)
-    if not success then warn("Ошибка сканирования: " .. err) end
-    task.wait(Config.ScanInterval)
-end
+coroutine.wrap(checkTime)()
