@@ -1,85 +1,49 @@
-local Players = game:GetService("Players")
-local TeleportService = game:GetService("TeleportService")
-local player = Players.LocalPlayer
-
--- Настройки серверов
-local SERVER_SETTINGS = {
-    {
-        code = "13144669790150978796525156034582",
-        name = "Сервер 1"
-    },
-    {
-        code = "05152044821246125845196560137248",
-        name = "Сервер 2"
-    }
+local player = game:GetService("Players").LocalPlayer
+local VK_LINKS = { -- Используем VK как прокси для открытия ссылок
+    [1] = "https://vk.com/away.php?to="..escape_url("https://www.roblox.com/games/1537690962/Bee-Swarm-Simulator?privateServerLinkCode=13144669790150978796525156034582"),
+    [2] = "https://vk.com/away.php?to="..escape_url("https://www.roblox.com/games/1537690962/Bee-Swarm-Simulator?privateServerLinkCode=05152044821246125845196560137248")
 }
 
--- Создаем интерфейс
-local ScreenGui = Instance.new("ScreenGui")
-local TextLabel = Instance.new("TextLabel")
+-- Создаем кнопки для ручного перехода
+local gui = Instance.new("ScreenGui")
+gui.Parent = player.PlayerGui
 
-ScreenGui.Parent = player:WaitForChild("PlayerGui")
-ScreenGui.ResetOnSpawn = false
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, 150)
+frame.Position = UDim2.new(0.5, -150, 0.5, -75)
+frame.Parent = gui
 
-TextLabel.Parent = ScreenGui
-TextLabel.Size = UDim2.new(0, 300, 0, 60)
-TextLabel.Position = UDim2.new(0, 10, 0, 10)
-TextLabel.BackgroundTransparency = 0.7
-TextLabel.BackgroundColor3 = Color3.new(0, 0, 0)
-TextLabel.TextColor3 = Color3.new(1, 1, 1)
-TextLabel.TextScaled = true
-TextLabel.Text = "Ожидание времени перехода..."
-
-local function createTeleportOptions()
-    local options = Instance.new("TeleportOptions")
-    options.ShouldReserveServer = false
-    options.ServerInstanceId = "" -- Оставьте пустым для приватных серверов
-    return options
-end
-
-local function safeTeleport(placeId, serverCode)
-    local options = createTeleportOptions()
-    
-    local success, err = pcall(function()
-        TeleportService:TeleportToPrivateServer(
-            placeId,
-            serverCode,
-            player.UserId,
-            options
-        )
+local function createBtn(text, pos, link)
+    local btn = Instance.new("TextButton")
+    btn.Text = text
+    btn.Size = UDim2.new(0, 280, 0, 60)
+    btn.Position = pos
+    btn.Parent = frame
+    btn.MouseButton1Click:Connect(function()
+        game:GetService("GuiService"):OpenBrowserWindow(link)
     end)
-    
-    if not success then
-        warn("Ошибка телепортации: "..tostring(err))
-        TextLabel.Text = "Ошибка: "..tostring(err)
-        return false
-    end
-    return true
 end
 
-local function checkTime()
-    while task.wait(1) do
-        local currentTime = os.date("%H:%M:%S")
-        local minutes = tonumber(os.date("%M"))
-        
-        TextLabel.Text = "Текущее время: "..currentTime
-        
-        -- В 56 минут → первый сервер
-        if minutes == 56 then
-            TextLabel.Text = "Переход на "..SERVER_SETTINGS[1].name
-            if safeTeleport(1537690962, SERVER_SETTINGS[1].code) then
-                task.wait(60)
-            end
-        end
-        
-        -- В 02 минуты → второй сервер
-        if minutes == 27 then
-            TextLabel.Text = "Переход на "..SERVER_SETTINGS[2].name
-            if safeTeleport(1537690962, SERVER_SETTINGS[2].code) then
-                task.wait(60)
-            end
+createBtn("Сервер 1 (56 мин)", UDim2.new(0, 10, 0, 20), VK_LINKS[1])
+createBtn("Сервер 2 (02 мин)", UDim2.new(0, 10, 0, 90), VK_LINKS[2])
+
+-- Автоматический мониторинг времени
+local timeLabel = Instance.new("TextLabel")
+timeLabel.Text = os.date("%H:%M:%S")
+timeLabel.Size = UDim2.new(0, 280, 0, 30)
+timeLabel.Position = UDim2.new(0, 10, 0, 160)
+timeLabel.Parent = gui
+
+spawn(function()
+    while wait(1) do
+        timeLabel.Text = os.date("%H:%M:%S")
+        local min = tonumber(os.date("%M"))
+        if min == 56 then
+            game:GetService("GuiService"):OpenBrowserWindow(VK_LINKS[1])
+            wait(60)
+        elseif min == 36 then
+            game:GetService("GuiService"):OpenBrowserWindow(VK_LINKS[2])
+            wait(60)
         end
     end
-end
-
-coroutine.wrap(checkTime)()
+end)
