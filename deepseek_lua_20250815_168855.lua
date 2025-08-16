@@ -2,13 +2,19 @@ local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local player = Players.LocalPlayer
 
--- Коды приватных серверов
-local SERVER_CODES = {
-    SERVER_1 = "13144669790150978796525156034582",
-    SERVER_2 = "05152044821246125845196560137248"
+-- Настройки серверов
+local SERVER_SETTINGS = {
+    {
+        code = "13144669790150978796525156034582",
+        name = "Сервер 1"
+    },
+    {
+        code = "05152044821246125845196560137248",
+        name = "Сервер 2"
+    }
 }
 
--- Создаем интерфейс для отображения
+-- Создаем интерфейс
 local ScreenGui = Instance.new("ScreenGui")
 local TextLabel = Instance.new("TextLabel")
 
@@ -24,27 +30,31 @@ TextLabel.TextColor3 = Color3.new(1, 1, 1)
 TextLabel.TextScaled = true
 TextLabel.Text = "Ожидание времени перехода..."
 
-local function teleportToServer(serverCode)
-    local placeId = 1537690962 -- ID Bee Swarm Simulator
+local function createTeleportOptions()
+    local options = Instance.new("TeleportOptions")
+    options.ShouldReserveServer = false
+    options.ServerInstanceId = "" -- Оставьте пустым для приватных серверов
+    return options
+end
+
+local function safeTeleport(placeId, serverCode)
+    local options = createTeleportOptions()
     
-    -- Создаем параметры телепортации
-    local teleportOptions = Instance.new("TeleportOptions")
-    teleportOptions.ShouldReserveServer = false
-    
-    local success, errorMsg = pcall(function()
-        -- Правильный вызов с 4 параметрами
+    local success, err = pcall(function()
         TeleportService:TeleportToPrivateServer(
-            placeId,          -- ID игры (number)
-            serverCode,      -- Код сервера (string)
-            player.UserId,   -- UserID игрока (number)
-            teleportOptions  -- Параметры (table)
+            placeId,
+            serverCode,
+            player.UserId,
+            options
         )
     end)
     
     if not success then
-        warn("Ошибка телепортации: "..tostring(errorMsg))
-        TextLabel.Text = "Ошибка: "..tostring(errorMsg)
+        warn("Ошибка телепортации: "..tostring(err))
+        TextLabel.Text = "Ошибка: "..tostring(err)
+        return false
     end
+    return true
 end
 
 local function checkTime()
@@ -56,16 +66,18 @@ local function checkTime()
         
         -- В 56 минут → первый сервер
         if minutes == 56 then
-            TextLabel.Text = "Переход на Сервер 1..."
-            teleportToServer(SERVER_CODES.SERVER_1)
-            task.wait(60) -- Защита от повтора
+            TextLabel.Text = "Переход на "..SERVER_SETTINGS[1].name
+            if safeTeleport(1537690962, SERVER_SETTINGS[1].code) then
+                task.wait(60)
+            end
         end
         
         -- В 02 минуты → второй сервер
-        if minutes == 25 then
-            TextLabel.Text = "Переход на Сервер 2..."
-            teleportToServer(SERVER_CODES.SERVER_2)
-            task.wait(60) -- Защита от повтора
+        if minutes == 27 then
+            TextLabel.Text = "Переход на "..SERVER_SETTINGS[2].name
+            if safeTeleport(1537690962, SERVER_SETTINGS[2].code) then
+                task.wait(60)
+            end
         end
     end
 end
