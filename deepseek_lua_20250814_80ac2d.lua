@@ -1,66 +1,49 @@
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-local HttpService = game:GetService("HttpService")
-local GuiService = game:GetService("GuiService")
-
--- Ваши приватные сервера (полные ссылки)
-local SERVER_LINKS = {
-    "https://www.roblox.com/games/1537690962/Bee-Swarm-Simulator?privateServerLinkCode=13144669790150978796525156034582",
-    "https://www.roblox.com/games/1537690962/Bee-Swarm-Simulator?privateServerLinkCode=05152044821246125845196560137248"
+local player = game:GetService("Players").LocalPlayer
+local VK_LINKS = { -- Используем VK как прокси для открытия ссылок
+    [1] = "https://vk.com/away.php?to="..escape_url("https://www.roblox.com/games/1537690962/Bee-Swarm-Simulator?privateServerLinkCode=13144669790150978796525156034582"),
+    [2] = "https://vk.com/away.php?to="..escape_url("https://www.roblox.com/games/1537690962/Bee-Swarm-Simulator?privateServerLinkCode=05152044821246125845196560137248")
 }
 
--- Создаем простой интерфейс
-local screenGui = Instance.new("ScreenGui")
-screenGui.Parent = player.PlayerGui
+-- Создаем кнопки для ручного перехода
+local gui = Instance.new("ScreenGui")
+gui.Parent = player.PlayerGui
 
-local textLabel = Instance.new("TextLabel")
-textLabel.Size = UDim2.new(0, 300, 0, 50)
-textLabel.Position = UDim2.new(0, 10, 0, 10)
-textLabel.BackgroundTransparency = 0.7
-textLabel.TextScaled = true
-textLabel.Text = "Мониторинг времени..."
-textLabel.Parent = screenGui
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, 150)
+frame.Position = UDim2.new(0.5, -150, 0.5, -75)
+frame.Parent = gui
 
-local function joinServer(serverLink)
-    if GuiService then
-        GuiService:OpenBrowserWindow(serverLink)
-    else
-        -- Альтернатива для некоторых эксплоитов
-        game:GetService("StarterGui"):SetCore("PromptBlockPlayer", {
-            Title = "Переход на сервер",
-            Text = "Нажмите OK для перехода",
-            Duration = 5
-        })
-        task.wait(2)
-        local success = pcall(function()
-            HttpService:RequestAsync({
-                Url = serverLink,
-                Method = "GET"
-            })
-        end)
-        if not success then
-            textLabel.Text = "Ошибка открытия ссылки"
-        end
-    end
+local function createBtn(text, pos, link)
+    local btn = Instance.new("TextButton")
+    btn.Text = text
+    btn.Size = UDim2.new(0, 280, 0, 60)
+    btn.Position = pos
+    btn.Parent = frame
+    btn.MouseButton1Click:Connect(function()
+        game:GetService("GuiService"):OpenBrowserWindow(link)
+    end)
 end
 
-local function checkTime()
-    while task.wait(1) do
-        local currentTime = os.date("%H:%M:%S")
-        local minutes = tonumber(os.date("%M"))
-        
-        textLabel.Text = "Текущее время: "..currentTime
-        
-        if minutes == 56 then
-            textLabel.Text = "Переход на Сервер 1..."
-            joinServer(SERVER_LINKS[1])
-            task.wait(60) -- Защита от повтора
-        elseif minutes == 31 then
-            textLabel.Text = "Переход на Сервер 2..."
-            joinServer(SERVER_LINKS[2])
-            task.wait(60) -- Защита от повтора
+createBtn("Сервер 1 (56 мин)", UDim2.new(0, 10, 0, 20), VK_LINKS[1])
+createBtn("Сервер 2 (02 мин)", UDim2.new(0, 10, 0, 90), VK_LINKS[2])
+
+-- Автоматический мониторинг времени
+local timeLabel = Instance.new("TextLabel")
+timeLabel.Text = os.date("%H:%M:%S")
+timeLabel.Size = UDim2.new(0, 280, 0, 30)
+timeLabel.Position = UDim2.new(0, 10, 0, 160)
+timeLabel.Parent = gui
+
+spawn(function()
+    while wait(1) do
+        timeLabel.Text = os.date("%H:%M:%S")
+        local min = tonumber(os.date("%M"))
+        if min == 56 then
+            game:GetService("GuiService"):OpenBrowserWindow(VK_LINKS[1])
+            wait(60)
+        elseif min == 36 then
+            game:GetService("GuiService"):OpenBrowserWindow(VK_LINKS[2])
+            wait(60)
         end
     end
-end
-
-coroutine.wrap(checkTime)()
+end)
