@@ -62,7 +62,7 @@ local function checkTime()
         end
         
         -- В 02 минуты → второй сервер
-        if minutes == 2 then
+        if minutes == 23 then
             TextLabel.Text = "Переход на Сервер 2..."
             teleportToServer(SERVER_CODES.SERVER_2)
             task.wait(60) -- Защита от повтора
