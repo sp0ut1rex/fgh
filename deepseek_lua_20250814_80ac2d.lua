@@ -2,13 +2,13 @@ local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local player = Players.LocalPlayer
 
--- Настройки серверов (только коды)
+-- Коды приватных серверов
 local SERVER_CODES = {
     SERVER_1 = "13144669790150978796525156034582",
     SERVER_2 = "05152044821246125845196560137248"
 }
 
--- Создаем интерфейс
+-- Создаем интерфейс для отображения
 local ScreenGui = Instance.new("ScreenGui")
 local TextLabel = Instance.new("TextLabel")
 
@@ -25,25 +25,26 @@ TextLabel.TextScaled = true
 TextLabel.Text = "Ожидание времени перехода..."
 
 local function teleportToServer(serverCode)
-    local placeId = 1537690962  -- ID Bee Swarm Simulator
+    local placeId = 1537690962 -- ID Bee Swarm Simulator
+    
+    -- Создаем параметры телепортации
     local teleportOptions = Instance.new("TeleportOptions")
     teleportOptions.ShouldReserveServer = false
     
     local success, errorMsg = pcall(function()
+        -- Правильный вызов с 4 параметрами
         TeleportService:TeleportToPrivateServer(
-            placeId,
-            serverCode,
-            player.UserId,
-            teleportOptions
+            placeId,          -- ID игры (number)
+            serverCode,      -- Код сервера (string)
+            player.UserId,   -- UserID игрока (number)
+            teleportOptions  -- Параметры (table)
         )
     end)
     
     if not success then
-        warn("Ошибка телепортации: " .. tostring(errorMsg))
-        TextLabel.Text = "Ошибка: " .. tostring(errorMsg)
-        return false
+        warn("Ошибка телепортации: "..tostring(errorMsg))
+        TextLabel.Text = "Ошибка: "..tostring(errorMsg)
     end
-    return true
 end
 
 local function checkTime()
@@ -51,22 +52,20 @@ local function checkTime()
         local currentTime = os.date("%H:%M:%S")
         local minutes = tonumber(os.date("%M"))
         
-        TextLabel.Text = "Текущее время: " .. currentTime
+        TextLabel.Text = "Текущее время: "..currentTime
         
         -- В 56 минут → первый сервер
         if minutes == 56 then
             TextLabel.Text = "Переход на Сервер 1..."
-            if teleportToServer(SERVER_CODES.SERVER_1) then
-                task.wait(60)  -- Защита от повторного срабатывания
-            end
+            teleportToServer(SERVER_CODES.SERVER_1)
+            task.wait(60) -- Защита от повтора
         end
         
         -- В 02 минуты → второй сервер
-        if minutes == 21 then
+        if minutes == 2 then
             TextLabel.Text = "Переход на Сервер 2..."
-            if teleportToServer(SERVER_CODES.SERVER_2) then
-                task.wait(60)  -- Защита от повторного срабатывания
-            end
+            teleportToServer(SERVER_CODES.SERVER_2)
+            task.wait(60) -- Защита от повтора
         end
     end
 end
