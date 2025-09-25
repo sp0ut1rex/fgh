@@ -1,148 +1,132 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
-local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
+local rootPart = character:WaitForChild("HumanoidRootPart")
 
---- Конфигурация ---
+-- Конфигурация
 local Config = {
     GlitterArgs = { { Name = "Glitter" } },
-    Whitelist = {
-        ["2908768899"] = {  -- BlueFlower
+    Fields = {
+        ["2908768899"] = { -- BlueFlower
             name = "BlueFlower",
-            fieldPosition = Vector3.new(139.61, 4.00, 97.26)
+            position = Vector3.new(139.61, 4.00, 97.26),
+            flightTime = 3.5
         },
-        ["2908769190"] = {  -- PineTree
-            name = "PineTree", 
-            fieldPosition = Vector3.new(-332.0, 68.00, -194.90)
-        },
-        ["2908768829"] = {  -- Bamboo
-            name = "Bamboo",
-            fieldPosition = Vector3.new(116.43, 20.00, -21.75)
+        ["2908769190"] = { -- PineTree
+            name = "PineTree",
+            position = Vector3.new(-332.0, 68.00, -194.90),
+            flightTime = 4
         }
     },
-    BoostSettings = {
-        DelayBeforeAction = 14 * 60, -- 14 минут ожидания
-        ScanInterval = 5,            -- Проверка каждые 5 секунд
-        FreezeDuration = 1           -- Фиксация позиции на 1 секунду
+    Settings = {
+        WaitTime = 14 * 60, -- 14 минут ожидания
+        ScanDelay = 5,      -- Проверка каждые 5 сек
+        FreezeAfter = 1     -- Стоять 1 сек после Glitter
     }
 }
 
---- Системные переменные ---
+-- Система
 local ActiveBoosts = {}
 local GlitterEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("PlayerActivesCommand")
+local isFlying = false
 
---- Логирование ---
-local function log(message)
-    print("[BOOST SYSTEM]: " .. message)
+-- Логирование
+local function Log(message)
+    print("[FLIGHT SYSTEM]: "..os.date("%H:%M:%S").." | "..message)
 end
 
---- Отменяет все активные твины персонажа ---
-local function cancelCharacterTweens()
-    for _, tween in ipairs(TweenService:GetActiveTweens()) do
-        if tween.Instance:IsDescendantOf(character) then
-            tween:Cancel()
-        end
-    end
-end
-
---- Фиксирует позицию персонажа на время ---
-local function freezeCharacter(duration)
-    if not character then return end
-
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not rootPart then return end
-
-    -- 1. Отменяем твины (только в момент телепортации)
-    cancelCharacterTweens()
-
-    -- 2. Фиксируем позицию (Anchored + защита от изменений)
-    local originalAnchored = rootPart.Anchored
-    rootPart.Anchored = true
-
-    -- 3. Ждем указанное время
-    task.wait(duration)
-
-    -- 4. Восстанавливаем физику
-    rootPart.Anchored = originalAnchored
-end
-
---- Телепортация + Glitter ---
-local function doBoostAction(boostData)
-    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
-
-    -- Телепортация
-    pcall(function()
-        -- Отменяем твины только в этот момент
-        cancelCharacterTweens()
+-- Плавный полет с защитой
+local function SmoothFlight(targetPosition, duration)
+    if isFlying then return false end
+    isFlying = true
+    
+    -- Фиксация начальной позиции
+    local startPos = rootPart.Position
+    local startTime = tick()
+    local endTime = startTime + duration
+    
+    -- Создаем соединение для плавного перемещения
+    local connection
+    connection = RunService.Heartbeat:Connect(function()
+        local currentTime = tick()
+        local progress = math.min(1, (currentTime - startTime) / duration)
         
-        -- Фиксируем позицию на 1 секунду
-        character.HumanoidRootPart.CFrame = CFrame.new(boostData.fieldPosition)
-        log("Телепортирован на поле " .. boostData.name)
-        freezeCharacter(Config.BoostSettings.FreezeDuration)
+        -- Плавное перемещение
+        rootPart.CFrame = CFrame.new(
+            startPos:Lerp(targetPosition, progress),
+            targetPosition
+        )
+        
+        -- Завершение полета
+        if progress >= 1 then
+            connection:Disconnect()
+            isFlying = false
+        end
     end)
+    
+    -- Ожидаем завершения
+    repeat task.wait() until tick() >= endTime
+    if connection then connection:Disconnect() end
+    return true
+end
 
-    -- Glitter (после разморозки)
+-- Основная функция буста
+local function UseBoost(boostData)
+    -- Плавный полет
+    Log("Начинаю полет на "..boostData.name)
+    SmoothFlight(boostData.position, boostData.flightTime)
+    
+    -- Фиксация после прилета
+    rootPart.Anchored = true
+    Log("Прибыл на поле, фиксирую позицию")
+    
+    -- Использование Glitter
     pcall(function()
         GlitterEvent:FireServer(unpack(Config.GlitterArgs))
-        log("Glitter использован")
+        Log("Glitter успешно использован")
     end)
-end
-
---- Таймер для буста ---
-local function startBoostTimer(boostId, boostData)
-    log("Обнаружен буст: " .. boostData.name)
     
-    task.wait(Config.BoostSettings.DelayBeforeAction)
-    doBoostAction(boostData)
-    ActiveBoosts[boostId] = nil
+    -- Ожидание перед разблокировкой
+    task.wait(Config.Settings.FreezeAfter)
+    rootPart.Anchored = false
+    Log("Завершено")
 end
 
---- Сканирование бустов ---
-local function scanBoosts()
+-- Сканер бустов
+local function ScanBoosts()
     local gui = player:WaitForChild("PlayerGui")
-    local screenGui = gui:FindFirstChild("ScreenGui")
-    if not screenGui then return end
-
-    local tileGrid = screenGui:FindFirstChild("TileGrid")
-    if not tileGrid then return end
-
-    for _, iconTile in ipairs(tileGrid:GetChildren()) do
-        if iconTile:FindFirstChild("Tracked") then continue end
-
-        local bg = iconTile:FindFirstChild("BG")
-        if not bg then continue end
-
-        local icon = bg:FindFirstChildOfClass("ImageButton")
-        if not icon then continue end
-
-        local id = tostring(icon.Image):match("rbxassetid://(%d+)")
-        if not id or not Config.Whitelist[id] then continue end
-
-        -- Помечаем буст как обработанный
-        local marker = Instance.new("BoolValue")
-        marker.Name = "Tracked"
-        marker.Parent = iconTile
-
-        -- Запускаем таймер
-        if not ActiveBoosts[id] then
-            ActiveBoosts[id] = true
-            coroutine.wrap(startBoostTimer)(id, Config.Whitelist[id])
+    for _, element in ipairs(gui:GetDescendants()) do
+        if element:IsA("ImageButton") and not element:FindFirstChild("Processed") then
+            local id = tostring(element.Image):match("rbxassetid://(%d+)")
+            if id and Config.Fields[id] and not ActiveBoosts[id] then
+                local marker = Instance.new("BoolValue")
+                marker.Name = "Processed"
+                marker.Parent = element
+                
+                ActiveBoosts[id] = true
+                Log("Обнаружен буст: "..Config.Fields[id].name)
+                
+                task.delay(Config.Settings.WaitTime, function()
+                    UseBoost(Config.Fields[id])
+                    ActiveBoosts[id] = nil
+                end)
+            end
         end
     end
 end
 
---- Обработчик респавна ---
+-- Обработчик респавна
 player.CharacterAdded:Connect(function(newChar)
     character = newChar
+    rootPart = character:WaitForChild("HumanoidRootPart")
 end)
 
---- Основной цикл ---
-log("Система активирована")
+-- Главный цикл
 while true do
-    pcall(scanBoosts)
-    task.wait(Config.BoostSettings.ScanInterval)
+    pcall(ScanBoosts)
+    task.wait(Config.Settings.ScanDelay)
 end
